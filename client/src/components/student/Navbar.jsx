@@ -85,7 +85,7 @@ const Navbar = () => {
               onClick={() => openSignIn()}
               className="bg-primary hover:bg-secondary text-white px-8 py-2.5 rounded-full font-medium shadow-md hover:shadow-lg transition-all"
             >
-              Create Account
+              Login/Signup
             </motion.button>
           )}
         </div>
