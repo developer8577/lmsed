@@ -33,7 +33,7 @@ const App = () => {
   }, [location.search])
 
   return (
-    <div className='text-default min-h-screen bg-white'>
+    <div className='text-default min-h-screen bg-white flex flex-col'>
       <ToastContainer />
       {!isEducatorRoute && <Navbar />}
 
