@@ -48,7 +48,8 @@ const CourseDetails = () => {
     backendUrl,
     userData,
     getToken,
-    getYouTubeId
+    getYouTubeId,
+    user
   } = useContext(AppContext)
 
   const fetchCourseData = async () => {
@@ -63,7 +64,7 @@ const CourseDetails = () => {
 
   const enrollCourse = async () => {
     try {
-      if (!userData) return toast.warn('Login to enroll')
+      if (!user) return toast.warn('Login to enroll')
       if (isAlreadyEnrolled) return toast.warn('Already Enrolled')
 
       const token = await getToken()
@@ -219,7 +220,7 @@ const CourseDetails = () => {
 
                           {lecture.isPreviewFree && (
                             <button
-                              onClick={() => setPlayerData({ videoId: getYouTubeId(lecture.lectureUrl) })}
+                              onClick={() => setPlayerData({ videoId: lecture.lectureUrl })}
                               className="text-blue-600 text-xs font-medium underline"
                             >
                               Preview
@@ -257,11 +258,11 @@ const CourseDetails = () => {
           >
             <div className="flex items-center gap-4">
               <img
-                src={courseData.educator.avatar || assets.default_user_avatar}
+                src={courseData.educator?.avatar || assets.default_user_avatar}
                 className="w-14 h-14 rounded-full object-cover shadow"
               />
               <div>
-                <p className="font-semibold text-lg">{courseData.educator.name}</p>
+                <p className="font-semibold text-lg">{courseData.educator?.name || "Estreet"}</p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Instructor</p>
               </div>
             </div>
@@ -286,11 +287,14 @@ const CourseDetails = () => {
             {/* Preview Player */}
             <div className="bg-black w-full">
               {playerData ? (
-                <YouTube
-                  videoId={playerData.videoId}
-                  opts={{ playerVars: { autoplay: 1 } }}
-                  iframeClassName="w-full aspect-video"
-                />
+                getYouTubeId(playerData.videoId) ?
+                  <YouTube
+                    videoId={playerData.videoId}
+                    opts={{ playerVars: { autoplay: 1 } }}
+                    iframeClassName="w-full aspect-video"
+                  />
+                  :
+                  <video src={playerData.videoId} autoPlay controls controlsList="nodownload" onContextMenu={e => e.preventDefault()} className='w-full aspect-video' />
               ) : (
                 <img src={courseData.courseThumbnail} className="w-full aspect-video object-cover" />
               )}

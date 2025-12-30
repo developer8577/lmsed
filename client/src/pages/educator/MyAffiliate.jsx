@@ -6,7 +6,7 @@ import axios from 'axios'
 import { toast } from 'react-toastify'
 
 const MyAffiliate = () => {
-    const { userData, currency, backendUrl, getToken, fetchUserData } = useContext(AppContext)
+    const { userData, currency, backendUrl, getToken, fetchUserData, user } = useContext(AppContext)
     const [referrals, setReferrals] = useState([])
     const [payouts, setPayouts] = useState([])
     const [loading, setLoading] = useState(true)
@@ -33,7 +33,7 @@ const MyAffiliate = () => {
     }
 
     const handleWithdrawal = async () => {
-        if (!userData.affiliateEarnings || userData.affiliateEarnings <= 0) return;
+        if (!userData || !userData.affiliateEarnings || userData.affiliateEarnings <= 0) return;
         setIsWithdrawing(true);
         try {
             const token = await getToken();
@@ -57,14 +57,14 @@ const MyAffiliate = () => {
     }
 
     useEffect(() => {
-        if (userData) {
+        if (user) {
             fetchAffiliateStats()
         }
-    }, [userData])
+    }, [user])
 
-    if (!userData || loading) return <Loading />
+    if (loading) return <Loading />
 
-    const affiliateLink = `${window.location.origin}/course-list?ref=${userData._id}`
+    const affiliateLink = `${window.location.origin}/course-list?ref=${user?.id}`
 
     return (
         <div className='h-screen flex-col items-start justify-between gap-8 md:p-8 md:pb-0 p-4 pt-8 pb-0 overflow-y-scroll'>
@@ -78,9 +78,9 @@ const MyAffiliate = () => {
                             <img src={assets.earning_icon} alt="" className="absolute -bottom-4 -right-4 w-24 opacity-10" />
                             <div>
                                 <p className='text-sm text-gray-500 mb-1'>Total Earnings</p>
-                                <p className='text-3xl font-bold text-gray-800'>{currency}{userData.affiliateEarnings ? userData.affiliateEarnings.toFixed(2) : 0}</p>
+                                <p className='text-3xl font-bold text-gray-800'>{currency}{userData?.affiliateEarnings ? userData.affiliateEarnings.toFixed(2) : 0}</p>
                             </div>
-                            {userData.affiliateEarnings > 0 && (
+                            {userData?.affiliateEarnings > 0 && (
                                 <button
                                     onClick={handleWithdrawal}
                                     disabled={isWithdrawing}
@@ -172,8 +172,8 @@ const MyAffiliate = () => {
                                                 <td className="px-6 py-4">{currency}{payout.amount}</td>
                                                 <td className="px-6 py-4">
                                                     <span className={`px-2 py-1 rounded text-xs font-medium ${payout.status === 'processed' ? 'bg-green-100 text-green-800' :
-                                                            payout.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                                                'bg-yellow-100 text-yellow-800'
+                                                        payout.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                                            'bg-yellow-100 text-yellow-800'
                                                         }`}>
                                                         {payout.status.charAt(0).toUpperCase() + payout.status.slice(1)}
                                                     </span>

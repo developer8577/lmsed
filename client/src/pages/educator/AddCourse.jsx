@@ -1,13 +1,13 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
-import uniqid from "uniqid";
 import Quill from "quill";
 import { assets } from "../../assets/assets";
 import { AppContext } from "../../context/AppContext";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const AddCourse = () => {
-  const { backendUrl, getToken, getYouTubeId } = useContext(AppContext)
+  const { backendUrl, getToken } = useContext(AppContext)
   const quillRef = useRef(null);
   const editorRef = useRef(null);
 
@@ -26,12 +26,29 @@ const AddCourse = () => {
     isPreviewFree: false,
   });
 
+  // Edit Mode Logic
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { course } = location.state || {};
+  const isEdit = !!course;
+
+  useEffect(() => {
+    if (isEdit) {
+      setCourseTitle(course.courseTitle);
+      setCoursePrice(course.coursePrice);
+      setDiscount(course.discount);
+      setChapters(course.courseContent);
+      // Image handling not persisted in state easily unless we just preview existing thumbnail
+    }
+  }, [isEdit, course]);
+
+
   const handleChapter = (action, chapterId) => {
     if (action === "add") {
       const title = prompt("Enter Chapter Name:");
       if (title) {
         const newChapter = {
-          chapterId: uniqid(),
+          chapterId: crypto.randomUUID(),
           chapterTitle: title,
           chapterContent: [],
           collapsed: false,
@@ -75,8 +92,8 @@ const AddCourse = () => {
     }
   };
   const addLecture = () => {
-    if (!getYouTubeId(lectureDetails.lectureUrl)) {
-      toast.error("Invalid YouTube URL");
+    if (!lectureDetails.lectureUrl) {
+      toast.error("Invalid URL");
       return;
     }
     setChapters(
@@ -85,7 +102,7 @@ const AddCourse = () => {
           const newLecture = {
             ...lectureDetails,
             lectureOrder: chapter.chapterContent.length > 0 ? chapter.chapterContent.slice(-1)[0].lectureOrder + 1 : 1,
-            lectureId: uniqid()
+            lectureId: crypto.randomUUID()
           };
           return {
             ...chapter,
@@ -106,9 +123,9 @@ const AddCourse = () => {
   const handleSubmit = async (e) => {
     try {
       e.preventDefault()
-      if (!image) {
+      if (!image && !isEdit) {
         toast.error('Thumbnail Not Selected')
-
+        return
       }
       const courseData = {
         courseTitle,
@@ -117,11 +134,19 @@ const AddCourse = () => {
         discount: Number(discount),
         courseContent: chapters,
       }
+      if (isEdit) {
+        courseData.courseId = course._id
+      }
       const formData = new FormData()
       formData.append('courseData', JSON.stringify(courseData))
-      formData.append('image', image)
+      if (image) {
+        formData.append('image', image)
+      }
+
       const token = await getToken()
-      const { data } = await axios.post(backendUrl + '/api/educator/add-course', formData, { headers: { Authorization: `Bearer ${token}` } })
+      const url = isEdit ? backendUrl + '/api/educator/update-course' : backendUrl + '/api/educator/add-course';
+
+      const { data } = await axios.post(url, formData, { headers: { Authorization: `Bearer ${token}` } })
       if (data.success) {
         toast.success(data.message)
         setCourseTitle('')
@@ -130,8 +155,9 @@ const AddCourse = () => {
         setImage(null)
         setChapters([])
         quillRef.current.root.innerHTML = ""
+        navigate('/educator/my-courses')
       } else {
-        toast.error(data.mesage)
+        toast.error(data.message)
 
       }
     } catch (error) {
@@ -147,8 +173,11 @@ const AddCourse = () => {
       quillRef.current = new Quill(editorRef.current, {
         theme: "snow",
       });
+      if (isEdit && course.courseDescription) {
+        quillRef.current.root.innerHTML = course.courseDescription
+      }
     }
-  }, []);
+  }, [course]);
 
   return (
     <div className="h-screen overflow-scroll flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0">
@@ -203,7 +232,7 @@ const AddCourse = () => {
               />
               <img
                 className="max-h-10"
-                src={image ? URL.createObjectURL(image) : ""}
+                src={image ? URL.createObjectURL(image) : isEdit ? course.courseThumbnail : ""}
                 alt=""
               />
             </label>
@@ -334,9 +363,34 @@ const AddCourse = () => {
                 </div>
 
                 <div className="mb-2">
-                  <p>Lecture URL</p>
+                  <p>Lecture Video (or URL)</p>
+                  <input
+                    type="file"
+                    accept="video/*"
+                    onChange={async (e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      const formData = new FormData();
+                      formData.append("video", file);
+                      try {
+                        const token = await getToken();
+                        toast.info("Uploading Video...");
+                        const { data } = await axios.post(backendUrl + "/api/educator/upload-video", formData, { headers: { Authorization: `Bearer ${token}` } });
+                        if (data.success) {
+                          setLectureDetails(prev => ({ ...prev, lectureUrl: data.videoUrl }));
+                          toast.success("Video Uploaded Successfully");
+                        } else {
+                          toast.error(data.message);
+                        }
+                      } catch (error) {
+                        toast.error(error.message);
+                      }
+                    }}
+                    className="mb-2 block w-full border rounded py-1 px-2"
+                  />
                   <input
                     type="text"
+                    placeholder="Or paste URL here"
                     className="mt-1 block w-full border rounded py-1 px-2"
                     value={lectureDetails.lectureUrl}
                     onChange={(e) =>
@@ -382,7 +436,7 @@ const AddCourse = () => {
           className="bg-black text-white w-max py-2.5 px-8
 rounded my-4"
         >
-          ADD
+          {isEdit ? "Update" : "ADD"}
         </button>
       </form>
     </div>

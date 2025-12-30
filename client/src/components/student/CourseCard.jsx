@@ -17,7 +17,7 @@ const CourseCard = ({ course }) => {
         onClick={() => scrollTo(0, 0)}
         className="bg-white border border-gray-100 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden block"
       >
-        
+
         {/* Thumbnail */}
         <div className="relative">
           <img
@@ -30,13 +30,13 @@ const CourseCard = ({ course }) => {
         </div>
 
         <div className="p-5 text-left">
-          
+
           <h3 className="text-lg font-bold text-gray-900 line-clamp-2 min-h-[3.5rem]">
             {course.courseTitle}
           </h3>
 
           <p className="text-sm text-gray-500 mt-1">
-            {course.educator.name || "Estreet"}
+            {course.educator?.name || "Estreet"}
           </p>
 
           {/* Rating */}

@@ -38,6 +38,51 @@ export const addCourse = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
+// update course
+export const updateCourse = async (req, res) => {
+  try {
+    const { courseData } = req.body;
+    const imageFile = req.file;
+    const educatorId = req.auth.userId;
+
+    const parsedCourseData = await JSON.parse(courseData);
+    const courseId = parsedCourseData.courseId; // Expecting courseId in the data
+
+    if (!courseId) {
+      return res.json({ success: false, message: "Course ID missing" });
+    }
+
+    const course = await Course.findById(courseId);
+
+    if (!course) {
+      return res.json({ success: false, message: "Course not found" });
+    }
+
+    if (course.educator !== educatorId) {
+      return res.json({ success: false, message: "Unauthorized" });
+    }
+
+    // Update fields
+    course.courseTitle = parsedCourseData.courseTitle;
+    course.courseDescription = parsedCourseData.courseDescription;
+    course.coursePrice = parsedCourseData.coursePrice;
+    course.discount = parsedCourseData.discount;
+    course.courseContent = parsedCourseData.courseContent;
+
+
+    if (imageFile) {
+      const imageUpload = await cloudinary.uploader.upload(imageFile.path);
+      course.courseThumbnail = imageUpload.secure_url;
+    }
+
+    await course.save();
+
+    res.json({ success: true, message: "Course Updated" });
+
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
 // get educator courses
 export const getEducatorCourses = async (req, res) => {
   try {
@@ -115,3 +160,18 @@ export const getEnrolledStudentsData = async (req, res) => {
 
   }
 }
+// Upload Video to Cloudinary
+export const uploadVideo = async (req, res) => {
+  try {
+    const videoFile = req.file;
+    if (!videoFile) {
+      return res.json({ success: false, message: "Video Not Attached" });
+    }
+    const result = await cloudinary.uploader.upload(videoFile.path, {
+      resource_type: "video",
+    });
+    res.json({ success: true, videoUrl: result.secure_url });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};

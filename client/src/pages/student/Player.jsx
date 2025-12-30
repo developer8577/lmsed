@@ -188,7 +188,9 @@ const Player = () => {
         <div className="md:mt-10">
           {playerData ? (
             <div>
-              <YouTube videoId={getYouTubeId(playerData.lectureUrl)} iframeClassName='w-full aspect-video' />
+              {getYouTubeId(playerData.lectureUrl) ?
+                <YouTube videoId={getYouTubeId(playerData.lectureUrl)} iframeClassName='w-full aspect-video' />
+                : <video src={playerData.lectureUrl} controls controlsList="nodownload" onContextMenu={e => e.preventDefault()} className='w-full aspect-video' />}
               <div className="flex justify-between items-center mt-1">
                 <p>{playerData.chapter}.{playerData.lecture} {playerData.lectureTitle}</p>
                 <button onClick={() => markLectureAsCompleted(playerData.lectureId)} className="text-blue-600">{progressData && progressData.lectureCompleted.includes(playerData.lectureId) ? 'Completed' : 'Mark Complete'}</button>

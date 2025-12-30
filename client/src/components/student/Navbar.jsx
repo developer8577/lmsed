@@ -1,6 +1,6 @@
 import React, { useContext } from "react";
 import { assets } from "../../assets/assets";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useClerk, UserButton, useUser } from "@clerk/clerk-react";
 import { AppContext } from "../../context/AppContext";
 import axios from "axios";
@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 
 const Navbar = () => {
   const { navigate, isEducator, backendUrl, setIsEducator, getToken } = useContext(AppContext);
-
+  const location = useLocation();
   const isCourseListPage = location.pathname.includes("/course-list");
   const { openSignIn } = useClerk();
   const { user } = useUser();
@@ -39,9 +39,8 @@ const Navbar = () => {
       initial={{ y: -40, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className={`fixed top-0 left-0 w-full z-50 backdrop-blur-xl transition-all duration-300 shadow-sm ${
-        isCourseListPage ? "bg-white/80 border-b border-gray-200" : "bg-white/50 border-b border-white/20"
-      }`}
+      className={`fixed top-0 left-0 w-full z-50 backdrop-blur-xl transition-all duration-300 shadow-sm ${isCourseListPage ? "bg-white/80 border-b border-gray-200" : "bg-white/50 border-b border-white/20"
+        }`}
     >
       <div className="px-4 sm:px-10 md:px-14 lg:px-36 py-4 flex items-center justify-between">
         {/* Logo */}
