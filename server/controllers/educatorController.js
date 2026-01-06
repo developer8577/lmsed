@@ -1,22 +1,21 @@
-import { clerkClient } from "@clerk/express";
-import Course from "../models/Course.js";
-import { v2 as cloudinary } from "cloudinary";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import User from "../models/User.js";
 import { Purchase } from "../models/Purchase.js";
+import Course from "../models/Course.js";
+import fs from 'fs';
+import s3Client from "../configs/aws.js";
+
 // update role to educator
 export const updateRoleToEducator = async (req, res) => {
   try {
     const userId = req.auth.userId;
-    await clerkClient.users.updateUserMetadata(userId, {
-      publicMetadata: {
-        role: "educator",
-      },
-    });
+    const user = await User.findByIdAndUpdate(userId, { role: 'educator' });
     res.json({ success: true, message: "You can publish a course now" });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
+
 // add new course
 export const addCourse = async (req, res) => {
   try {
@@ -30,14 +29,29 @@ export const addCourse = async (req, res) => {
     const parsedCourseData = await JSON.parse(courseData);
     parsedCourseData.educator = educatorId;
     const newCourse = await Course.create(parsedCourseData);
-    const imageUpload = await cloudinary.uploader.upload(imageFile.path);
-    newCourse.courseThumbnail = imageUpload.secure_url;
+
+    // Upload Thumbnail to S3
+    const fileStream = fs.createReadStream(imageFile.path);
+    const contentType = imageFile.mimetype;
+    const key = `thumbnails/${Date.now()}_${imageFile.originalname}`;
+
+    const uploadParams = {
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: key,
+      Body: fileStream,
+      ContentType: contentType,
+    };
+    const command = new PutObjectCommand(uploadParams);
+    await s3Client.send(command);
+
+    newCourse.courseThumbnail = key; // Store Key on S3
     await newCourse.save();
     res.json({ success: true, message: "Course Added" });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
+
 // update course
 export const updateCourse = async (req, res) => {
   try {
@@ -71,8 +85,21 @@ export const updateCourse = async (req, res) => {
 
 
     if (imageFile) {
-      const imageUpload = await cloudinary.uploader.upload(imageFile.path);
-      course.courseThumbnail = imageUpload.secure_url;
+      // Upload Thumbnail to S3
+      const fileStream = fs.createReadStream(imageFile.path);
+      const contentType = imageFile.mimetype;
+      const key = `thumbnails/${Date.now()}_${imageFile.originalname}`;
+
+      const uploadParams = {
+        Bucket: process.env.S3_BUCKET_NAME,
+        Key: key,
+        Body: fileStream,
+        ContentType: contentType,
+      };
+      const command = new PutObjectCommand(uploadParams);
+      await s3Client.send(command);
+
+      course.courseThumbnail = key;
     }
 
     await course.save();
@@ -83,6 +110,7 @@ export const updateCourse = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
+
 // get educator courses
 export const getEducatorCourses = async (req, res) => {
   try {
@@ -93,6 +121,7 @@ export const getEducatorCourses = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
+
 // Get educator Dashboard data
 export const educatorDashboardData = async (req, res) => {
   try {
@@ -137,6 +166,7 @@ export const educatorDashboardData = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
+
 // Get enrolled Students data
 export const getEnrolledStudentsData = async (req, res) => {
 
@@ -160,17 +190,33 @@ export const getEnrolledStudentsData = async (req, res) => {
 
   }
 }
-// Upload Video to Cloudinary
+
+// Upload Video to AWS S3
 export const uploadVideo = async (req, res) => {
   try {
     const videoFile = req.file;
     if (!videoFile) {
       return res.json({ success: false, message: "Video Not Attached" });
     }
-    const result = await cloudinary.uploader.upload(videoFile.path, {
-      resource_type: "video",
-    });
-    res.json({ success: true, videoUrl: result.secure_url });
+
+    const fileStream = fs.createReadStream(videoFile.path);
+    const contentType = videoFile.mimetype;
+    const key = `lectures/${Date.now()}_${videoFile.originalname}`;
+
+    const uploadParams = {
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: key,
+      Body: fileStream,
+      ContentType: contentType,
+    };
+
+    const command = new PutObjectCommand(uploadParams);
+    await s3Client.send(command);
+
+    // Return the Key so the frontend/controller can save it. 
+    // The course controller will sign this key when fetching.
+    res.json({ success: true, videoUrl: key });
+
   } catch (error) {
     res.json({ success: false, message: error.message });
   }

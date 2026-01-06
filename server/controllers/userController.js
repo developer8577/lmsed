@@ -4,32 +4,21 @@ import { Payout } from "../models/Payout.js";
 import Stripe from "stripe";
 import Course from "../models/Course.js";
 import { CourseProgress } from "../models/CourseProgress.js";
+import { generatePresignedUrl } from "../configs/aws.js";
 
-import { clerkClient } from "@clerk/express";
+// import { clerkClient } from "@clerk/express";
 
 // Get user data
 // Get user data
 export const getUserData = async (req, res) => {
   try {
     const userId = req.auth.userId;
+    console.log("getUserData: Searching for userId:", userId);
     let user = await User.findById(userId);
 
     if (!user) {
-      // Lazy Sync
-      try {
-        const clerkUser = await clerkClient.users.getUser(userId);
-        const newUserData = {
-          _id: userId,
-          email: clerkUser.emailAddresses[0].emailAddress,
-          name: clerkUser.firstName + " " + clerkUser.lastName,
-          imageUrl: clerkUser.imageUrl,
-          enrolledCourses: []
-        };
-        await User.create(newUserData);
-        user = await User.findById(userId);
-      } catch (clerkError) {
-        return res.json({ success: false, message: "User Not Found and Sync Failed" });
-      }
+      console.log("getUserData: User not found in DB for ID:", userId);
+      return res.json({ success: false, message: "User not found" });
     }
 
     res.json({ success: true, user });
@@ -45,20 +34,23 @@ export const userEnrolledCourses = async (req, res) => {
     let userData = await User.findById(userId).populate("enrolledCourses");
 
     if (!userData) {
-      // Lazy Sync: User authentic via Clerk but missing in DB. Fetch and create.
-      try {
-        const clerkUser = await clerkClient.users.getUser(userId);
-        const newUserData = {
-          _id: userId,
-          email: clerkUser.emailAddresses[0].emailAddress,
-          name: clerkUser.firstName + " " + clerkUser.lastName,
-          imageUrl: clerkUser.imageUrl,
-          enrolledCourses: []
-        };
-        await User.create(newUserData);
-        userData = await User.findById(userId).populate("enrolledCourses");
-      } catch (clerkError) {
-        return res.json({ success: false, message: "User Not Found and Sync Failed" });
+      return res.json({ success: false, message: "User not found" });
+    }
+
+    // Sign URLs for all enrolled courses
+    for (const course of userData.enrolledCourses) {
+      if (course.courseContent) {
+        for (const chapter of course.courseContent) {
+          for (const lecture of chapter.chapterContent) {
+            if (lecture.lectureUrl) {
+              try {
+                lecture.lectureUrl = await generatePresignedUrl(lecture.lectureUrl);
+              } catch (err) {
+                console.error("Error signing URL:", err);
+              }
+            }
+          }
+        }
       }
     }
 

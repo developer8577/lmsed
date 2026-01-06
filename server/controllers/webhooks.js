@@ -1,60 +1,9 @@
-import { Webhook } from "svix";
 import User from "../models/User.js";
 import Stripe from "stripe";
 import { Purchase } from "../models/Purchase.js";
 import Course from "../models/Course.js";
+import { sendEmail } from "../configs/brevo.js";
 
-// API Controller Function to Manage Clerk User with database
-export const clerkWebhooks = async (req, res) => {
-  try {
-    const whook = new Webhook(process.env.CLERK_WEBHOOK_SECRET)
-    await whook.verify(req.body, {
-      "svix-id": req.headers["svix-id"],
-      "svix-timestamp": req.headers["svix-timestamp"],
-      "svix-signature": req.headers["svix-signature"]
-    })
-    const { data, type } = JSON.parse(req.body)
-    switch (type) {
-      case 'user.created': {
-        const userData = {
-          _id: data.id,
-          email: data.email_addresses[0].email_address,
-          name: data.first_name + " " + data.last_name,
-          imageUrl: data.image_url,
-        }
-        await User.create(userData)
-        res.json({})
-        break;
-      }
-      case 'user.updated': {
-        const userData = {
-          email: data.email_addresses[0].email_address,
-          name: data.first_name + " " + data.last_name,
-          imageUrl: data.image_url,
-
-        }
-        await User.findByIdAndUpdate(data.id, userData)
-        res.json({})
-        break;
-      }
-      case 'user.deleted': {
-        await User.findByIdAndDelete(data.id)
-        res.json({})
-        break;
-      }
-
-
-
-      default:
-        res.json({ success: true, message: "Unhandled event type" })
-        break;
-    }
-  } catch (error) {
-
-    res.json({ success: false, message: error.message })
-  }
-
-}
 const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY)
 export const stripeWebhooks = async (request, response) => {
   const sig = request.headers['stripe-signature'];
@@ -108,6 +57,15 @@ export const stripeWebhooks = async (request, response) => {
           affiliateUser.affiliateEarnings += purchaseData.commissionAmount;
           await affiliateUser.save();
         }
+      }
+
+      // Send Purchase Confirmation Email
+      const purchaseSubject = "Course Purchase Confirmation";
+      const purchaseContent = `<p>Hi ${userData.name},</p><p>Thank you for purchasing <strong>${courseData.courseTitle}</strong>. You can now access the course content.</p>`;
+      try {
+        await sendEmail(userData.email, purchaseSubject, purchaseContent);
+      } catch (emailError) {
+        console.error("Failed to send purchase email:", emailError);
       }
 
       break;

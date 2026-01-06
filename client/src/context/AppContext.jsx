@@ -2,9 +2,9 @@ import { createContext, useEffect, useState } from "react";
 import { dummyCourses } from "../assets/assets";
 import { useNavigate } from "react-router-dom";
 import humanizeDuration from "humanize-duration";
-import { useAuth, useUser } from "@clerk/clerk-react";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { useAuth, useUser } from "@clerk/clerk-react";
 
 export const AppContext = createContext();
 
@@ -12,6 +12,7 @@ export const AppContextProvider = (props) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const currency = import.meta.env.VITE_CURRENCY;
   const navigate = useNavigate();
+
   const { getToken } = useAuth();
   const { user } = useUser();
 
@@ -19,6 +20,9 @@ export const AppContextProvider = (props) => {
   const [isEducator, setIsEducator] = useState(false);
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [userData, setUserData] = useState(null);
+
+  // Config for Authorized Requests was: { headers: { Authorization: `Bearer ${token}` } }
+  // Since token is async now, we can't have a static config.
 
   // Fetch All Courses
   const fetchAllCourses = async () => {
@@ -33,31 +37,69 @@ export const AppContextProvider = (props) => {
       toast.error(error.message);
     }
   };
+
   // fetch user data
   const fetchUserData = async () => {
-    if (user.publicMetadata.role === "educator") {
-      setIsEducator(true);
-    }
+    if (!user) return; // Wait for Clerk user
     try {
       const token = await getToken();
-      const { data } = await axios.get(backendUrl + "/api/user/data", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      if (!token) return;
+
+      // Call Sync Endpoint (creates user if not exists)
+      const { data } = await axios.post(backendUrl + "/api/auth/sync", {}, { headers: { Authorization: `Bearer ${token}` } });
 
       if (data.success) {
         setUserData(data.user);
+        if (data.user.role === "educator") {
+          setIsEducator(true);
+        }
       } else {
         toast.error(data.message);
       }
     } catch (error) {
+      console.error("Auth Sync Error:", error);
       toast.error(error.message);
     }
   };
 
+  // Fetch User enrolled courses
+  const fetchUserEnrolledCourses = async () => {
+    if (!user) return;
+    try {
+      const token = await getToken();
+      if (!token) return;
+
+      const { data } = await axios.get(backendUrl + "/api/user/enrolled-courses", { headers: { Authorization: `Bearer ${token}` } });
+
+      if (data.success) {
+        setEnrolledCourses(data.enrolledCourses.reverse());
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      console.error("fetchUserEnrolledCourses error:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllCourses();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserData();
+      fetchUserEnrolledCourses();
+    } else {
+      setUserData(null);
+      setEnrolledCourses([]);
+      setIsEducator(false);
+    }
+  }, [user]);
+
+
   // Average Rating
   const calculateRating = (course) => {
     if (course.courseRatings.length === 0) return 0;
-
     let total = 0;
     course.courseRatings.forEach((r) => (total += r.rating));
     return Math.floor(total / course.courseRatings.length);
@@ -69,20 +111,17 @@ export const AppContextProvider = (props) => {
     chapter.chapterContent.forEach((lecture) => {
       time += lecture.lectureDuration;
     });
-
     return humanizeDuration(time * 60 * 1000, { units: ["h", "m"] });
   };
 
   // Total Course Duration
   const calculateCourseDuration = (course) => {
     let time = 0;
-
     course.courseContent.forEach((chapter) => {
       chapter.chapterContent.forEach((lecture) => {
         time += lecture.lectureDuration;
       });
     });
-
     return humanizeDuration(time * 60 * 1000, { units: ["h", "m"] });
   };
 
@@ -96,37 +135,6 @@ export const AppContextProvider = (props) => {
     });
     return totalLectures;
   };
-
-  // Fetch User enrolled courses
-  const fetchUserEnrolledCourses = async () => {
-    try {
-      const token = await getToken();
-      const { data } = await axios.get(
-        backendUrl + "/api/user/enrolled-courses",
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (data.success) {
-        setEnrolledCourses(data.enrolledCourses.reverse());
-      } else {
-        toast.error(data.message);
-      }
-    } catch (error) {
-      toast.error(error.message)
-    }
-  };
-
-  useEffect(() => {
-    fetchAllCourses();
-
-  }, []);
-
-  useEffect(() => {
-    if (user) {
-      fetchUserData();
-      fetchUserEnrolledCourses()
-    }
-  }, [user]);
 
   // Function to calculate course duration
   const getYouTubeId = (url) => {
@@ -153,7 +161,6 @@ export const AppContextProvider = (props) => {
     setUserData,
     getToken,
     user,
-    fetchAllCourses,
     fetchAllCourses,
     getYouTubeId,
     fetchUserData

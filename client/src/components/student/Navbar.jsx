@@ -1,35 +1,50 @@
 import React, { useContext } from "react";
 import { assets } from "../../assets/assets";
 import { Link, useLocation } from "react-router-dom";
-import { useClerk, UserButton, useUser } from "@clerk/clerk-react";
 import { AppContext } from "../../context/AppContext";
-import axios from "axios";
 import { motion } from "framer-motion";
+import { toast } from "react-toastify";
+import axios from "axios";
+import { useUser, UserButton, useClerk } from "@clerk/clerk-react";
 
 const Navbar = () => {
   const { navigate, isEducator, backendUrl, setIsEducator, getToken } = useContext(AppContext);
   const location = useLocation();
   const isCourseListPage = location.pathname.includes("/course-list");
+
+  const { isSignedIn, user } = useUser();
   const { openSignIn } = useClerk();
-  const { user } = useUser();
 
   const becomeEducator = async () => {
+    console.log("Become Educator Clicked. isEducator:", isEducator);
     try {
       if (isEducator) {
+        console.log("Already educator, navigating...");
         navigate('/educator');
         return;
       }
       const token = await getToken();
+      if (!token) {
+        toast.error("Please login first");
+        return;
+      }
+
+      console.log("Calling update-role API...");
+
       const { data } = await axios.get(backendUrl + '/api/educator/update-role', { headers: { Authorization: `Bearer ${token}` } });
+      console.log("API Response:", data);
 
       if (data.success) {
         setIsEducator(true);
         toast.success(data.message);
+        console.log("Navigating to /educator...");
+        navigate('/educator');
       } else {
         toast.error(data.message);
       }
 
     } catch (error) {
+      console.error("Become Educator Error:", error);
       toast.error(error.message);
     }
   };
@@ -74,7 +89,8 @@ const Navbar = () => {
 
           {/* Right Side */}
           {user ? (
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+            <motion.div className="flex items-center gap-4" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+              <span className="text-sm font-semibold">{user.fullName}</span>
               <UserButton />
             </motion.div>
           ) : (

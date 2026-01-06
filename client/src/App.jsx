@@ -16,6 +16,7 @@ import StudentsEnrolled from './pages/educator/StudentsEnrolled'
 import MyAffiliate from './pages/educator/MyAffiliate'
 import Navbar from './components/student/Navbar'
 import "quill/dist/quill.snow.css";
+import Login from './pages/Login'
 import { ToastContainer } from 'react-toastify';
 
 
@@ -39,6 +40,7 @@ const App = () => {
 
       <Routes>
         <Route path='/' element={<Home />} />
+        <Route path='/login' element={<Login />} />
         <Route path='/course-list' element={<CoursesList />} />
         <Route path='/course-list/:input' element={<CoursesList />} />
         <Route path='/course/:id' element={<CourseDetails />} />

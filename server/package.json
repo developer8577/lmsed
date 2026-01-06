@@ -12,16 +12,19 @@
   "author": "Awanish Thakur",
   "license": "ISC",
   "dependencies": {
-    "@clerk/express": "^1.7.55",
-    "cloudinary": "^2.8.0",
+    "@aws-sdk/client-s3": "^3.958.0",
+    "@aws-sdk/s3-request-presigner": "^3.723.0",
+    "@clerk/clerk-sdk-node": "^4.13.23",
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
+    "dotenv": "^16.4.7",
     "express": "^5.2.1",
-    "mongoose": "^9.0.1",
-    "multer": "^2.0.2",
-    "nodemon": "^3.1.11",
-    "stripe": "^20.0.0",
-    "svix": "^1.42.0"
-  },
-  "devDependencies": {}
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.3",
+    "multer": "^1.4.5-lts.1",
+    "nodemon": "^3.1.9",
+    "otp-generator": "^4.0.1",
+    "sib-api-v3-sdk": "^8.5.0",
+    "stripe": "^17.5.0"
+  }
 }
