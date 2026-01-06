@@ -3,7 +3,7 @@ import User from "../models/User.js";
 import { Purchase } from "../models/Purchase.js";
 import Course from "../models/Course.js";
 import fs from 'fs';
-import s3Client from "../configs/aws.js";
+import s3Client, { generatePresignedUploadUrl } from "../configs/aws.js";
 
 // update role to educator
 export const updateRoleToEducator = async (req, res) => {
@@ -216,6 +216,24 @@ export const uploadVideo = async (req, res) => {
     // Return the Key so the frontend/controller can save it. 
     // The course controller will sign this key when fetching.
     res.json({ success: true, videoUrl: key });
+
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// Get Presigned URL for Video Upload
+export const uploadVideoUrl = async (req, res) => {
+  try {
+    const { fileName, fileType } = req.body;
+    if (!fileName || !fileType) {
+      return res.json({ success: false, message: "Missing file details" });
+    }
+
+    const key = `lectures/${Date.now()}_${fileName}`;
+    const uploadUrl = await generatePresignedUploadUrl(key, fileType);
+
+    res.json({ success: true, uploadUrl, videoUrl: key });
 
   } catch (error) {
     res.json({ success: false, message: error.message });
